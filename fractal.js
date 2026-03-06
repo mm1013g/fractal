@@ -12,7 +12,11 @@ const state = {
   scale: 1,
   isPanning: false,
   lastMouseX: 0,
-  lastMouseY: 0
+  lastMouseY: 0,
+  // Touch state for pinch zoom
+  lastPinchDistance: null,
+  pinchCenterX: 0,
+  pinchCenterY: 0
 };
 
 // Canvas configuration
@@ -346,6 +350,102 @@ function setupViewportControls(renderer, updateFractal) {
       
       updateFractal();
     }
+  });
+
+  // Touch start - handle single and multi-touch
+  canvas.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    
+    if (event.touches.length === 1) {
+      // Single touch - start panning
+      state.isPanning = true;
+      state.lastMouseX = event.touches[0].clientX;
+      state.lastMouseY = event.touches[0].clientY;
+    } else if (event.touches.length === 2) {
+      // Two fingers - start pinch zoom
+      state.isPanning = false;
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      state.lastPinchDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      // Store center point for zoom
+      state.pinchCenterX = (touch1.clientX + touch2.clientX) / 2;
+      state.pinchCenterY = (touch1.clientY + touch2.clientY) / 2;
+    }
+  });
+
+  // Touch move - handle panning and pinch zoom
+  canvas.addEventListener('touchmove', (event) => {
+    event.preventDefault();
+    
+    if (event.touches.length === 1 && state.isPanning) {
+      // Single touch - pan
+      const deltaX = event.touches[0].clientX - state.lastMouseX;
+      const deltaY = event.touches[0].clientY - state.lastMouseY;
+      
+      state.offsetX += deltaX;
+      state.offsetY += deltaY;
+      
+      state.lastMouseX = event.touches[0].clientX;
+      state.lastMouseY = event.touches[0].clientY;
+      
+      updateFractal();
+    } else if (event.touches.length === 2) {
+      // Two fingers - pinch zoom
+      const touch1 = event.touches[0];
+      const touch2 = event.touches[1];
+      const currentDistance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      if (state.lastPinchDistance) {
+        const scaleFactor = currentDistance / state.lastPinchDistance;
+        const newScale = state.scale * scaleFactor;
+        
+        // Limit zoom range
+        if (newScale >= 0.1 && newScale <= 10) {
+          // Get pinch center relative to canvas
+          const rect = canvas.getBoundingClientRect();
+          const centerX = state.pinchCenterX - rect.left;
+          const centerY = state.pinchCenterY - rect.top;
+          
+          // Zoom towards pinch center
+          state.offsetX = centerX - (centerX - state.offsetX) * (newScale / state.scale);
+          state.offsetY = centerY - (centerY - state.offsetY) * (newScale / state.scale);
+          state.scale = newScale;
+          
+          updateFractal();
+        }
+      }
+      
+      state.lastPinchDistance = currentDistance;
+    }
+  });
+
+  // Touch end - stop panning/zooming
+  canvas.addEventListener('touchend', (event) => {
+    event.preventDefault();
+    
+    if (event.touches.length === 0) {
+      state.isPanning = false;
+      state.lastPinchDistance = null;
+    } else if (event.touches.length === 1) {
+      // Switched from two fingers to one - restart panning
+      state.isPanning = true;
+      state.lastMouseX = event.touches[0].clientX;
+      state.lastMouseY = event.touches[0].clientY;
+      state.lastPinchDistance = null;
+    }
+  });
+
+  // Touch cancel - stop panning/zooming
+  canvas.addEventListener('touchcancel', () => {
+    state.isPanning = false;
+    state.lastPinchDistance = null;
   });
 
   // Set initial cursor
