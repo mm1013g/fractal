@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fractal Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        #error-message {
+            display: none;
+            background-color: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            max-width: 600px;
+        }
+
+        #canvas-container {
+            margin-bottom: 20px;
+        }
+
+        #fractal-canvas {
+            border: 2px solid #333;
+            background-color: #1a1a1a;
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 600px;
+            background-color: #222;
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .value-display {
+            font-weight: bold;
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fractal Simulator</h1>
+
+    <div id="error-message">
+        Your browser does not support HTML5 Canvas. Please use a modern browser such as Chrome, Firefox, Safari, or Edge.
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="fractal-canvas" width="600" height="600"></canvas>
+    </div>
+
+    <div id="controls">
+        <div class="control-group">
+            <label>
+                Iterations: 
+                <span id="iterations-value" class="value-display">8</span>
+            </label>
+            <input type="range" id="iterations" min="1" max="12" value="8">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Ratio: 
+                <span id="ratio-value" class="value-display">0.67</span>
+            </label>
+            <input type="range" id="ratio" min="0.3" max="0.9" step="0.01" value="0.67">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Angle: 
+                <span id="angle-value" class="value-display">25</span>°
+            </label>
+            <input type="range" id="angle" min="0" max="90" value="25">
+        </div>
+    </div>
+
+    <script src="fractal.js"></script>
+</body>
+</html>
