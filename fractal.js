@@ -5,7 +5,14 @@
 const state = {
   iterations: 8,      // Default: 8 (Requirement 7.1)
   ratio: 0.67,        // Default: 0.67 (Requirement 7.2)
-  angle: 25           // Default: 25 degrees (Requirement 7.3)
+  angle: 25,          // Default: 25 degrees (Requirement 7.3)
+  // Viewport state for panning and zooming
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
+  isPanning: false,
+  lastMouseX: 0,
+  lastMouseY: 0
 };
 
 // Canvas configuration
@@ -70,14 +77,14 @@ function initializeApp() {
 
 /**
  * Clamps parameters to valid ranges
- * @param {number} iterations - Recursion depth (1-12)
+ * @param {number} iterations - Recursion depth (1-15)
  * @param {number} ratio - Branch length scaling factor (0.3-0.9)
  * @param {number} angle - Branching angle in degrees (0-90)
  * @returns {Object} Clamped parameters object
  */
 function clampParameters(iterations, ratio, angle) {
   return {
-    iterations: Math.max(1, Math.min(12, Math.round(iterations))),
+    iterations: Math.max(1, Math.min(15, Math.round(iterations))),
     ratio: Math.max(0.3, Math.min(0.9, ratio)),
     angle: Math.max(0, Math.min(90, Math.round(angle)))
   };
@@ -117,20 +124,27 @@ class FractalRenderer {
 
   /**
    * Main render method - Clears canvas and initiates fractal drawing
-   * @param {number} iterations - Recursion depth (1-12)
+   * @param {number} iterations - Recursion depth (1-15)
    * @param {number} ratio - Branch length scaling factor (0.3-0.9)
    * @param {number} angle - Branching angle in degrees (0-90)
    * Validates: Requirements 1.1, 1.3, 1.4, 5.1, 6.3, 6.4
    */
   render(iterations, ratio, angle) {
     try {
+      // Save current context state
+      this.ctx.save();
+
       // Clear canvas before each render (Requirement 5.1)
       this.ctx.fillStyle = this.config.backgroundColor;
       this.ctx.fillRect(0, 0, this.config.width, this.config.height);
 
+      // Apply viewport transformations (pan and zoom)
+      this.ctx.translate(state.offsetX, state.offsetY);
+      this.ctx.scale(state.scale, state.scale);
+
       // Set stroke style and line width (Requirement 1.5)
       this.ctx.strokeStyle = this.config.lineColor;
-      this.ctx.lineWidth = this.config.lineWidth;
+      this.ctx.lineWidth = this.config.lineWidth / state.scale; // Adjust line width for zoom
 
       // Calculate initial trunk parameters (Requirements 1.4, 6.3, 6.4)
       const startX = this.config.trunkStartX;
@@ -143,6 +157,9 @@ class FractalRenderer {
 
       // Call recursive drawBranch method with initial parameters (Requirement 1.1)
       this.drawBranch(startX, startY, length, initialAngle, 0, iterations, ratio, branchAngleRad);
+
+      // Restore context state
+      this.ctx.restore();
 
     } catch (error) {
       console.error('Rendering error:', error);
@@ -259,17 +276,93 @@ function setupSliderHandlers() {
 
   // Render initial fractal with default parameters
   updateFractal();
+
+  // Return renderer for use in viewport controls
+  return { renderer, updateFractal };
+}
+
+/**
+ * Setup viewport controls for panning and zooming
+ */
+function setupViewportControls(renderer, updateFractal) {
+  const canvas = document.getElementById('fractal-canvas');
+  if (!canvas) return;
+
+  // Mouse down - start panning
+  canvas.addEventListener('mousedown', (event) => {
+    state.isPanning = true;
+    state.lastMouseX = event.clientX;
+    state.lastMouseY = event.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+
+  // Mouse move - pan if dragging
+  canvas.addEventListener('mousemove', (event) => {
+    if (state.isPanning) {
+      const deltaX = event.clientX - state.lastMouseX;
+      const deltaY = event.clientY - state.lastMouseY;
+      
+      state.offsetX += deltaX;
+      state.offsetY += deltaY;
+      
+      state.lastMouseX = event.clientX;
+      state.lastMouseY = event.clientY;
+      
+      updateFractal();
+    }
+  });
+
+  // Mouse up - stop panning
+  canvas.addEventListener('mouseup', () => {
+    state.isPanning = false;
+    canvas.style.cursor = 'grab';
+  });
+
+  // Mouse leave - stop panning
+  canvas.addEventListener('mouseleave', () => {
+    state.isPanning = false;
+    canvas.style.cursor = 'grab';
+  });
+
+  // Wheel - zoom in/out
+  canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    
+    const zoomIntensity = 0.1;
+    const delta = event.deltaY > 0 ? -zoomIntensity : zoomIntensity;
+    const newScale = state.scale * (1 + delta);
+    
+    // Limit zoom range
+    if (newScale >= 0.1 && newScale <= 10) {
+      // Get mouse position relative to canvas
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      
+      // Zoom towards mouse position
+      state.offsetX = mouseX - (mouseX - state.offsetX) * (newScale / state.scale);
+      state.offsetY = mouseY - (mouseY - state.offsetY) * (newScale / state.scale);
+      state.scale = newScale;
+      
+      updateFractal();
+    }
+  });
+
+  // Set initial cursor
+  canvas.style.cursor = 'grab';
 }
 
 // Setup slider handlers after initialization
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     if (initializeApp()) {
-      setupSliderHandlers();
+      const { renderer, updateFractal } = setupSliderHandlers();
+      setupViewportControls(renderer, updateFractal);
     }
   });
 } else {
   if (initializeApp()) {
-    setupSliderHandlers();
+    const { renderer, updateFractal } = setupSliderHandlers();
+    setupViewportControls(renderer, updateFractal);
   }
 }
